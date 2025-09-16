@@ -8,6 +8,9 @@ import requests
 from time import sleep
 from collections import defaultdict, deque
 from typing import Dict, List
+import traceback
+from datetime import datetime, timezone
+
 
 # Load environment variables
 load_dotenv()
@@ -16,9 +19,10 @@ TOKEN = os.getenv("TOKEN")        # Need to get from the app dashboard
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")    # A random string that you can write anything but need to place it while approving webhook
 APP_ID = os.getenv("APP_ID")          # These 2 are available on the platform
 APP_SECRET = os.getenv("APP_SECRET")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "llama-3.1-8b-instant")  # Default model if not set
 
 # Set up LLM
-llm = ChatGroq(model="llama3-8b-8192", temperature=0)
+llm = ChatGroq(model=CHAT_MODEL, temperature=0)
 
 # Initialize FastAPI
 app = FastAPI()
@@ -99,7 +103,7 @@ def add_to_chat_memory(user_number: str, sender: str, content: str):
     message_entry = {
         "sender": sender,
         "content": content,
-        "timestamp": requests.get("http://worldtimeapi.org/api/timezone/UTC").json().get("datetime", "unknown") if requests else "unknown"
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     
     chat_memory[user_number].append(message_entry)
@@ -146,6 +150,7 @@ async def handle_text_message(message, value):
         
     except Exception as e:
         print(f"Error handling text message: {e}")
+        traceback.print_exc()
         # Try to send error message
         try:
             await send_whatsapp_message(message["from"], "Sorry, I encountered an error processing your message.")
